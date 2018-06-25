@@ -3,9 +3,11 @@
 # Build/version information
 NAME    :=$(shell basename `git rev-parse --show-toplevel`)
 RELEASE :=$(shell git rev-parse --verify --short HEAD)
-VERSION  = 0.0.1
+VERSION  =$(shell cat VERSION)
 BUILD    = $(VERSION)-$(RELEASE)
 LDFLAGS  = "-X main.buildVersion=$(BUILD)"
 
 build: 
-	go build -ldflags ${LDFLAGS}
+	GOOS=linux go build -ldflags ${LDFLAGS} -o kissyface-linux
+	GOOS=darwin go build -ldflags ${LDFLAGS} -o kissyface-osx
+	GOOS=windows go build -ldflags ${LDFLAGS} -o kissyface.exe
