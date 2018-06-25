@@ -22,6 +22,7 @@ deploy:
     branches:
       only:
         - master
+    tags: true
   notifications:
     on_success: never
     on_failure: change
