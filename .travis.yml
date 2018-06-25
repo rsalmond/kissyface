@@ -19,10 +19,7 @@ deploy:
     - README.md
   on:
     repo: rsalmond/kissyface
-    branches:
-      only:
-        - master
-    tags: true
+    branch: master
   notifications:
     on_success: never
     on_failure: change
