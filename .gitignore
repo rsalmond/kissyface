@@ -1,3 +1,6 @@
+sample_data.txt
+reddit_notes.txt
+*.swp
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
