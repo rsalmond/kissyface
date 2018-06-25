@@ -1,4 +1,10 @@
 language: go
-
 go:
-  - "1.9"
+- '1.9'
+deploy:
+  provider: releases
+  api_key:
+    secure: PjNKsPp8ATo/WqGzeRkyg7bBc/6J45DJi5Y2szpxA1gG38CmUmmzvUZ2NwtmtqaqR6tIIJ6XEDa98d0lYr9nkjizUDeEDbFCeYNyrTtS7zlc39wI/cRbEwdzDMwwIBU8cs2kcInWYfkVFcy6UfkIaEUMZGFPSOSgHFD5sI3ajPqsNUcyPqbwWZIaoMPaYrUiXHmBw/j18+AF0QJ89gizuN3nyML4FiGHvfNUWwpLx5C6dumu1shcHInlrzQ13UD3gNQREDdLQht3Tl/PodKIgurPm/07SlX7pvIl5FDUA7/J+8fFE3FkX6dAN2brxL2Rh4w4XMW0L/0jj7sT4StiJ6Hp6EU93Vi5w+YBz+yQk84ekWeQa0RNPI1AckvByVgJ1hmWoj0bSxstf0cicsQKkiR2dMRJ3xzkib3OCQxU1+pb47Y8/c0NuEKfG61OnlojOTDoHRrp01vDxRDQGEbOrZVEXvjb3tzeogFi5MX4KVlUbQBa0Iq/P1okKTDCouS28StIfWnW3AgQL/qLQmmDW1svJNiX1WK5bDZpx05AeFq+LprsArWmDs7E2ngnE+lgbQZgnx4P0NP7nsPe1auxal0q/aPZmGBpd4/I+2seBmpFf3uEca2T8C+XkFcy9VlRA/ZEdQaB+d1A5kOo76Tn+ZY/ZM0jBUNeO4Jhw+9NwHA=
+  file: kissyface
+  on:
+    repo: rsalmond/kissyface
