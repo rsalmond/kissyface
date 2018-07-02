@@ -120,7 +120,24 @@ func (h Histogram) write_hourly_csv() (error) {
 	return nil
 }*/
 
+func (h Histogram) write_hourly_csv() (error) {
+	const filename string = "./hourly.csv"
+	f, err := os.Create(filename)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("failed to write csv file %s", filename))
+	}
 
+	defer f.Close()
+	// write the header
+	f.WriteString("Hour, MessageCount\n")
+
+	for hour, _ := range h.Hours{
+		f.WriteString(fmt.Sprintf("%02d:00, %d\n", hour, h.Hours[hour]))
+	}
+
+	return nil
+
+}
 
 func (h Histogram) write_weekday_csv() (error) {
 	const filename string = "./weekday.csv"
@@ -185,7 +202,7 @@ func (h Histogram) report() {
 
 
 	h.write_weekday_csv()
-	//h.write_hourly_csv()
+	h.write_hourly_csv()
 }
 
 func (m Message) display() {
@@ -250,8 +267,6 @@ func Analyze() error {
 		histo.count(message)
 	}
 
-	fmt.Println(histo.Hours)
-	fmt.Println(histo.Weekdays)
 	histo.report()
 	return nil
 }
