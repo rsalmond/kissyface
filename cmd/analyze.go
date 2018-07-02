@@ -220,7 +220,9 @@ func Analyze() error {
 	histo.init()
 
 	scanner := bufio.NewScanner(f)
+	line_count := 0
 	for scanner.Scan() {
+		line_count++
 		message := new(Message)
 
 		line := scanner.Text()
@@ -231,7 +233,7 @@ func Analyze() error {
 		separated := strings.SplitN(line, ",", 2)
 		// looks like a safe assumption that correctly formatted records have a comma between the datestamp and the data
 		if len(separated) < 2 {
-			fmt.Println("Warning: discarding malformed record.")
+			fmt.Printf("Warning: discarding malformed record on line: %d\n", line_count)
 			fmt.Printf("\t%s\n", line)
 			continue
 		} else {
