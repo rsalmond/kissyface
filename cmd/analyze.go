@@ -91,9 +91,8 @@ func (h *Histogram) count(m *Message) {
 	return
 }
 
-/*
-func (h Histogram) write_hourly_csv() (error) {
-	//const filename string = "./all_time_by_hour.csv"
+func (h Histogram) write_alltime_csv() (error) {
+	const filename string = "./all_time_by_hour.csv"
 
 	f, err := os.Create(filename)
 	if err != nil {
@@ -101,24 +100,52 @@ func (h Histogram) write_hourly_csv() (error) {
 	}
 
 	defer f.Close()
-	//TODO: iterate over every hour from the first message
-	// pulling entries out of the Hourly map when found or writing 0's when not
 
+	// this will hold the mapping for each user to the number of messages for the current row of output
+	current_row := make(map[string]int)
+
+	// used to populate the headers and individual data rows
+	usernames := make([]string, 0)
+	var messages []string
+
+	// initialize
+	for user, _ := range h.Users {
+		current_row[user] = 0
+		usernames = append(usernames, user)
+	}
+
+	// write header
+	f.WriteString(fmt.Sprintf("Hour, %s\n", strings.Join(usernames, ",")))
+
+	// get the first and last elements from the ordered slice of all messages for start / end times
+	// probably don't even need this whole slice but whatever
 	start_time := h.HourlyOrder[0]
 	end_time := h.HourlyOrder[len(h.HourlyOrder)-1]
 
-	for current_hour := start_time; current_hour <= end_time; date = current_hour.Add(time.Hour * 1) {
-		if hour, ok := h.Hourly[current_hour]; ok {
-			for user, messages := range h.Hourly[hour] {
-				fmt.Printf("Hour: %s, User: %s, Messages: %d\n", current_hour, user, messages)
+	// loop over every hour from the time of the very first message
+	for current_hour := start_time; current_hour.Before(end_time); current_hour = current_hour.Add(time.Hour * 1) {
+		// reset the message slice for each row we write
+		messages = make([]string, 0)
+		// check if we have any messages counted in this hour
+		if _, ok := h.Hourly[current_hour]; ok {
+			// if we do, record the count for that user in the current row
+			for user, messages := range h.Hourly[current_hour] {
+				current_row[user] = messages
 			}
 
-		} else {
-			fmt.Printf("Hour: %s, User: none, Messages, 0", current_hour)
 		}
+		// generate the CSV string values for this row of data (and reset the counts in preparation for the next row)
+		for _, user := range usernames {
+			messages = append(messages, fmt.Sprintf("%d", current_row[user]))
+			current_row[user] = 0
+		}
+		// write it
+		f.WriteString(fmt.Sprintf("%s, %s\n", current_hour, strings.Join(messages, ",")))
+		// reset
+		messages = nil
 	}
 	return nil
-}*/
+}
 
 func (h Histogram) write_hourly_csv() (error) {
 	const filename string = "./hourly.csv"
@@ -131,7 +158,7 @@ func (h Histogram) write_hourly_csv() (error) {
 	// write the header
 	f.WriteString("Hour, MessageCount\n")
 
-	for hour, _ := range h.Hours{
+	for hour, _ := range h.Hours {
 		f.WriteString(fmt.Sprintf("%02d:00, %d\n", hour, h.Hours[hour]))
 	}
 
@@ -203,6 +230,7 @@ func (h Histogram) report() {
 
 	h.write_weekday_csv()
 	h.write_hourly_csv()
+	h.write_alltime_csv()
 }
 
 func (m Message) display() {
