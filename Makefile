@@ -7,7 +7,10 @@ VERSION  =$(shell cat VERSION)
 BUILD    = $(VERSION)-$(RELEASE)
 LDFLAGS  = "-X main.buildVersion=$(BUILD)"
 
-build: 
+build:
 	GOOS=linux go build -ldflags ${LDFLAGS} -o kissyface-linux
 	GOOS=darwin go build -ldflags ${LDFLAGS} -o kissyface-osx
 	GOOS=windows go build -ldflags ${LDFLAGS} -o kissyface.exe
+
+dev:
+	GOOS=linux go build -ldflags ${LDFLAGS} -o kissyface
