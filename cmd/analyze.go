@@ -50,16 +50,15 @@ func (h *Histogram) init() {
 		h.Hours[i] = 0
 	}
 
-	// june 17th was a sunday, this sets up our slice in order
+	// june 17th was a sunday, this sets up our slice in weekday order
 	for date := time.Date(2018, time.Month(6), 17, 12, 0, 0, 0, time.UTC); date.Day() < 25; date = date.Add(time.Hour * time.Duration(24)) {
 		h.Weekdays[date.Weekday()] = 0
 	}
 }
 
-func (h Histogram) count(m *Message) {
+func (h *Histogram) count(m *Message) {
 	// count every mesage
 	h.TotalMessages++
-
 	// sum up total messages by hour of the day they were sent
 	h.Hours[m.Hour]++
 
@@ -90,6 +89,57 @@ func (h Histogram) count(m *Message) {
 	}
 
 	return
+}
+
+/*
+func (h Histogram) write_hourly_csv() (error) {
+	//const filename string = "./all_time_by_hour.csv"
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("failed to write csv file %s", filename))
+	}
+
+	defer f.Close()
+	//TODO: iterate over every hour from the first message
+	// pulling entries out of the Hourly map when found or writing 0's when not
+
+	start_time := h.HourlyOrder[0]
+	end_time := h.HourlyOrder[len(h.HourlyOrder)-1]
+
+	for current_hour := start_time; current_hour <= end_time; date = current_hour.Add(time.Hour * 1) {
+		if hour, ok := h.Hourly[current_hour]; ok {
+			for user, messages := range h.Hourly[hour] {
+				fmt.Printf("Hour: %s, User: %s, Messages: %d\n", current_hour, user, messages)
+			}
+
+		} else {
+			fmt.Printf("Hour: %s, User: none, Messages, 0", current_hour)
+		}
+	}
+	return nil
+}*/
+
+
+
+func (h Histogram) write_weekday_csv() (error) {
+	const filename string = "./weekday.csv"
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("failed to write csv file %s", filename))
+	}
+
+	defer f.Close()
+
+	// write the header
+	f.WriteString("Weekday, MessageCount\n")
+
+	for day, _ := range h.Weekdays {
+		f.WriteString(fmt.Sprintf("%s, %d\n", day, h.Weekdays[day]))
+	}
+
+	return nil
 }
 
 func (h Histogram) get_chattiest_day() (time.Weekday, int) {
@@ -133,7 +183,9 @@ func (h Histogram) report() {
 	hour, hourly_messages := h.get_chattiest_hour()
 	fmt.Printf("You send the most messages during the %dth hour of the day, %d all told!\n", hour, hourly_messages)
 
-	//TODO: write out CSV's
+
+	h.write_weekday_csv()
+	//h.write_hourly_csv()
 }
 
 func (m Message) display() {
