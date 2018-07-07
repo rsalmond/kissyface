@@ -29,42 +29,52 @@ type Message struct {
 }
 
 type Histogram struct {
-	Hours         []int
+	Hours         map[int]map[string]int
 	Hourly        map[time.Time]map[string]int
 	HourlyOrder   []time.Time
-	Weekdays      map[time.Weekday]int
+	Weekdays      map[time.Weekday]map[string]int
 	Users         map[string]int
 	TotalMessages int
 }
 
 func (h *Histogram) init() {
 	// prepare all the histogram data
-	h.Hours = make([]int, 24)
+	h.Hours = make(map[int]map[string]int, 24)
 	h.Hourly = make(map[time.Time]map[string]int)
 	h.HourlyOrder = make([]time.Time, 0)
-	h.Weekdays = make(map[time.Weekday]int, 7)
+	h.Weekdays = make(map[time.Weekday]map[string]int, 7)
 	h.Users = make(map[string]int, 2)
 	h.TotalMessages = 0
-
-	for i := 0; i < 24; i++ {
-		h.Hours[i] = 0
-	}
-
-	// june 17th was a sunday, this sets up our slice in weekday order
-	for date := time.Date(2018, time.Month(6), 17, 12, 0, 0, 0, time.UTC); date.Day() < 25; date = date.Add(time.Hour * time.Duration(24)) {
-		h.Weekdays[date.Weekday()] = 0
-	}
 }
 
 func (h *Histogram) count(m *Message) {
 	// count every mesage
 	h.TotalMessages++
 	// sum up total messages by hour of the day they were sent
-	h.Hours[m.Hour]++
+	if _, hour_present := h.Hours[m.Hour]; hour_present {
+		if _, user_present := h.Hours[m.Hour][m.User]; user_present {
+			h.Hours[m.Hour][m.User]++
+		} else {
+			h.Hours[m.Hour][m.User] = 1
+		}
+	} else {
+		h.Hours[m.Hour] = make(map[string]int, 2)
+		h.Hours[m.Hour][m.User] = 1
+	}
 
 	// and by day of the week
 	date := time.Date(m.Year, time.Month(m.Month), m.Day, m.Hour, 0, 0, 0, time.UTC)
-	h.Weekdays[date.Weekday()]++
+	if _, date_present := h.Weekdays[date.Weekday()]; date_present {
+		if _, user_present := h.Weekdays[date.Weekday()][m.User]; user_present {
+			h.Weekdays[date.Weekday()][m.User]++
+		} else {
+			h.Weekdays[date.Weekday()][m.User] = 1
+		}
+
+	} else {
+		h.Weekdays[date.Weekday()] = make(map[string]int, 2)
+		h.Weekdays[date.Weekday()][m.User] = 1
+	}
 
 	// and by messages per hour across all time (broken out by user)
 	if _, date_present := h.Hourly[date]; date_present {
@@ -155,11 +165,36 @@ func (h Histogram) write_hourly_csv() (error) {
 	}
 
 	defer f.Close()
-	// write the header
-	f.WriteString("Hour, MessageCount\n")
+
+	// this will hold the mapping for each user to the number of messages for the current row of output
+	current_row := make(map[string]int)
+
+	// used to populate the headers and individual data rows
+	usernames := make([]string, 0)
+	var messages []string
+
+	// initialize
+	for user, _ := range h.Users {
+		current_row[user] = 0
+		usernames = append(usernames, user)
+	}
+
+	// write header
+	f.WriteString(fmt.Sprintf("Hour, %s\n", strings.Join(usernames, ",")))
 
 	for hour, _ := range h.Hours {
-		f.WriteString(fmt.Sprintf("%02d:00, %d\n", hour, h.Hours[hour]))
+		messages = make([]string, 0)
+		if _, ok := h.Hours[hour]; ok {
+			for user, messages := range h.Hours[hour] {
+				current_row[user] = messages
+			}
+		}
+		for _, user := range usernames {
+			messages = append(messages, fmt.Sprintf("%d", current_row[user]))
+			current_row[user] = 0
+		}
+		f.WriteString(fmt.Sprintf("%02d:00, %s\n", hour, strings.Join(messages, ",")))
+		messages = nil
 	}
 
 	return nil
@@ -175,40 +210,67 @@ func (h Histogram) write_weekday_csv() (error) {
 	}
 
 	defer f.Close()
+	// this will hold the mapping for each user to the number of messages for the current row of output
+	current_row := make(map[string]int)
 
-	// write the header
-	f.WriteString("Weekday, MessageCount\n")
+	// used to populate the headers and individual data rows
+	usernames := make([]string, 0)
+	var messages []string
+
+	// initialize
+	for user, _ := range h.Users {
+		current_row[user] = 0
+		usernames = append(usernames, user)
+	}
+
+	// write header
+	f.WriteString(fmt.Sprintf("Day, %s\n", strings.Join(usernames, ",")))
 
 	for day, _ := range h.Weekdays {
-		f.WriteString(fmt.Sprintf("%s, %d\n", day, h.Weekdays[day]))
+		messages = make([]string, 0)
+		if _, ok := h.Weekdays[day]; ok {
+			for user, messages := range h.Weekdays[day] {
+				current_row[user] = messages
+			}
+		}
+		for _, user := range usernames {
+			messages = append(messages, fmt.Sprintf("%d", current_row[user]))
+			current_row[user] = 0
+		}
+		f.WriteString(fmt.Sprintf("%s, %s\n", day.String(), strings.Join(messages, ",")))
+		messages = nil
 	}
 
 	return nil
 }
 
-func (h Histogram) get_chattiest_day() (time.Weekday, int) {
+func (h Histogram) get_chattiest_day() (map[string]time.Weekday, map[string]int) {
 
-	var chattiest_day time.Weekday
-	var chattiest_day_messages = 0
+	var chattiest_day = make(map[string]time.Weekday)
+	var chattiest_day_messages = make(map[string]int)
 
-	for day, messages := range h.Weekdays {
-		if messages > chattiest_day_messages {
-			chattiest_day = day
-			chattiest_day_messages = messages
+	for day, users := range h.Weekdays {
+		for user, messages := range users {
+			if messages > chattiest_day_messages[user] {
+				chattiest_day[user] = day
+				chattiest_day_messages[user] = messages
+			}
 		}
 	}
 
 	return chattiest_day, chattiest_day_messages
 }
 
-func (h Histogram) get_chattiest_hour() (int, int) {
+func (h Histogram) get_chattiest_hour() (map[string]int, map[string]int) {
+	var chattiest_hour = make(map[string]int)
+	var chattiest_hour_messages = make(map[string]int)
 
-	var chattiest_hour, chattiest_hour_messages = 0, 0
-
-	for hour, messages := range h.Hours {
-		if messages > chattiest_hour_messages {
-			chattiest_hour = hour
-			chattiest_hour_messages = messages
+	for hour, users := range h.Hours {
+		for user, messages := range users {
+			if messages > chattiest_hour_messages[user] {
+				chattiest_hour[user] = hour
+				chattiest_hour_messages[user] = messages
+			}
 		}
 	}
 
@@ -222,10 +284,14 @@ func (h Histogram) report() {
 	}
 
 	day, daily_messages := h.get_chattiest_day()
-	fmt.Printf("You send the most messages on %s, %d all told!\n", day, daily_messages)
+	for user, _ := range day {
+		fmt.Printf("%s sends the most messages on %s, %d all told!\n", user, day[user], daily_messages[user])
+	}
 
 	hour, hourly_messages := h.get_chattiest_hour()
-	fmt.Printf("You send the most messages during the %dth hour of the day, %d all told!\n", hour, hourly_messages)
+	for user, _:= range hour {
+		fmt.Printf("%s sends the most messages during the %dth hour of the day, %d all told!\n", user, hour[user], hourly_messages[user])
+	}
 
 
 	h.write_weekday_csv()
